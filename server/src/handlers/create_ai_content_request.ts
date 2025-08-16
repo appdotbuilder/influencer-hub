@@ -1,21 +1,37 @@
+import { db } from '../db';
+import { aiContentRequestsTable, usersTable } from '../db/schema';
 import { type CreateAIContentRequestInput, type AIContentRequest } from '../schema';
+import { eq } from 'drizzle-orm';
 
 export const createAIContentRequest = async (input: CreateAIContentRequestInput): Promise<AIContentRequest> => {
-    // This is a placeholder declaration! Real code should be implemented here.
-    // The goal of this handler is creating requests for AI-powered content generation.
-    // Should validate user existence and prompt quality before queuing the request.
-    // May integrate with external AI services (OpenAI, Claude, etc.) for content generation.
-    // Should handle asynchronous processing and status updates as content is generated.
-    return Promise.resolve({
-        id: 1, // Placeholder ID
+  try {
+    // Validate user exists
+    const userExists = await db.select({ id: usersTable.id })
+      .from(usersTable)
+      .where(eq(usersTable.id, input.user_id))
+      .execute();
+
+    if (userExists.length === 0) {
+      throw new Error(`User with id ${input.user_id} not found`);
+    }
+
+    // Insert AI content request record
+    const result = await db.insert(aiContentRequestsTable)
+      .values({
         user_id: input.user_id,
         prompt: input.prompt,
         content_type: input.content_type,
         platform: input.platform,
         generated_content: null,
         status: 'pending',
-        error_message: null,
-        created_at: new Date(),
-        updated_at: new Date()
-    } as AIContentRequest);
+        error_message: null
+      })
+      .returning()
+      .execute();
+
+    return result[0];
+  } catch (error) {
+    console.error('AI content request creation failed:', error);
+    throw error;
+  }
 };

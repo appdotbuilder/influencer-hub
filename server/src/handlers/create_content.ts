@@ -1,12 +1,24 @@
+import { db } from '../db';
+import { contentTable, usersTable } from '../db/schema';
 import { type CreateContentInput, type Content } from '../schema';
+import { eq } from 'drizzle-orm';
 
 export const createContent = async (input: CreateContentInput): Promise<Content> => {
-    // This is a placeholder declaration! Real code should be implemented here.
-    // The goal of this handler is creating new content for social media posting.
-    // Should validate user existence and handle media file uploads if provided.
-    // May integrate with AI content generation services when ai_generated flag is true.
-    return Promise.resolve({
-        id: 1, // Placeholder ID
+  try {
+    // Validate that the user exists
+    const user = await db.select()
+      .from(usersTable)
+      .where(eq(usersTable.id, input.user_id))
+      .limit(1)
+      .execute();
+
+    if (user.length === 0) {
+      throw new Error(`User with id ${input.user_id} does not exist`);
+    }
+
+    // Insert content record
+    const result = await db.insert(contentTable)
+      .values({
         user_id: input.user_id,
         title: input.title,
         description: input.description || null,
@@ -14,8 +26,21 @@ export const createContent = async (input: CreateContentInput): Promise<Content>
         ai_generated: input.ai_generated || false,
         script: input.script || null,
         media_urls: input.media_urls || [],
-        hashtags: input.hashtags || [],
-        created_at: new Date(),
-        updated_at: new Date()
-    } as Content);
+        hashtags: input.hashtags || []
+      })
+      .returning()
+      .execute();
+
+    const content = result[0];
+    
+    // JSONB fields are already properly typed, no parsing needed
+    return {
+      ...content,
+      media_urls: content.media_urls as string[],
+      hashtags: content.hashtags as string[]
+    };
+  } catch (error) {
+    console.error('Content creation failed:', error);
+    throw error;
+  }
 };

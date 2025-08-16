@@ -1,17 +1,29 @@
+import { db } from '../db';
+import { campaignMetricsTable } from '../db/schema';
 import { type CreateCampaignMetricInput, type CampaignMetric } from '../schema';
 
 export const createCampaignMetric = async (input: CreateCampaignMetricInput): Promise<CampaignMetric> => {
-    // This is a placeholder declaration! Real code should be implemented here.
-    // The goal of this handler is recording performance metrics for campaign tracking.
-    // Should be called by automated metric collection services that gather data from platform APIs.
-    // May include validation to ensure metric_name follows standard naming conventions.
-    return Promise.resolve({
-        id: 1, // Placeholder ID
+  try {
+    // Insert campaign metric record
+    const result = await db.insert(campaignMetricsTable)
+      .values({
         campaign_id: input.campaign_id,
         platform: input.platform,
         metric_name: input.metric_name,
-        metric_value: input.metric_value,
-        measured_at: input.measured_at || new Date(),
-        created_at: new Date()
-    } as CampaignMetric);
+        metric_value: input.metric_value.toString(), // Convert number to string for numeric column
+        measured_at: input.measured_at || new Date()
+      })
+      .returning()
+      .execute();
+
+    // Convert numeric fields back to numbers before returning
+    const metric = result[0];
+    return {
+      ...metric,
+      metric_value: parseFloat(metric.metric_value) // Convert string back to number
+    };
+  } catch (error) {
+    console.error('Campaign metric creation failed:', error);
+    throw error;
+  }
 };

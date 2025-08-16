@@ -1,9 +1,24 @@
+import { db } from '../db';
+import { aiContentRequestsTable } from '../db/schema';
 import { type AIContentRequest } from '../schema';
+import { eq, desc } from 'drizzle-orm';
 
 export const getAIContentRequestsByUser = async (userId: number): Promise<AIContentRequest[]> => {
-    // This is a placeholder declaration! Real code should be implemented here.
-    // The goal of this handler is fetching AI content generation requests for a user.
-    // Should return requests ordered by creation date with current generation status.
-    // May include filtering by status and content type for better user experience.
-    return [];
+  try {
+    // Query AI content requests for the specified user, ordered by creation date (newest first)
+    const results = await db.select()
+      .from(aiContentRequestsTable)
+      .where(eq(aiContentRequestsTable.user_id, userId))
+      .orderBy(desc(aiContentRequestsTable.created_at))
+      .execute();
+
+    // Convert database results to schema-compliant format
+    return results.map(request => ({
+      ...request,
+      // No numeric conversions needed - all fields are already in correct types
+    }));
+  } catch (error) {
+    console.error('Failed to fetch AI content requests:', error);
+    throw error;
+  }
 };

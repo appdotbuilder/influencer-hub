@@ -1,12 +1,23 @@
+import { db } from '../db';
+import { platformAccountsTable, usersTable } from '../db/schema';
 import { type CreatePlatformAccountInput, type PlatformAccount } from '../schema';
+import { eq } from 'drizzle-orm';
 
 export const createPlatformAccount = async (input: CreatePlatformAccountInput): Promise<PlatformAccount> => {
-    // This is a placeholder declaration! Real code should be implemented here.
-    // The goal of this handler is linking a social media platform account to a user.
-    // Should handle OAuth token storage and validation for each platform.
-    // Must validate that the user exists before creating the platform account.
-    return Promise.resolve({
-        id: 1, // Placeholder ID
+  try {
+    // First, validate that the user exists
+    const existingUser = await db.select()
+      .from(usersTable)
+      .where(eq(usersTable.id, input.user_id))
+      .execute();
+
+    if (existingUser.length === 0) {
+      throw new Error(`User with id ${input.user_id} does not exist`);
+    }
+
+    // Insert platform account record
+    const result = await db.insert(platformAccountsTable)
+      .values({
         user_id: input.user_id,
         platform: input.platform,
         platform_user_id: input.platform_user_id,
@@ -14,10 +25,16 @@ export const createPlatformAccount = async (input: CreatePlatformAccountInput): 
         access_token: input.access_token || null,
         refresh_token: input.refresh_token || null,
         token_expires_at: input.token_expires_at || null,
-        is_active: true,
+        is_active: true, // Default to true
         followers_count: input.followers_count || 0,
-        following_count: input.following_count || 0,
-        created_at: new Date(),
-        updated_at: new Date()
-    } as PlatformAccount);
+        following_count: input.following_count || 0
+      })
+      .returning()
+      .execute();
+
+    return result[0];
+  } catch (error) {
+    console.error('Platform account creation failed:', error);
+    throw error;
+  }
 };
